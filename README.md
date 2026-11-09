@@ -167,6 +167,16 @@ The `Ini` struct offers great support for type conversion and type setting safel
 
 ## 📖Features
 
+ - *std*: Enabled by default. Provides file and stream I/O (`load()`, `write()`, `load_from_stream()` etc).
+   Disabling it makes the crate `no_std + alloc`, keeping the in-memory API (`read()`, `writes()`, `get*()`, `set()`, etc.) available
+   everywhere `alloc` is. In `no_std` builds, the backing map is `BTreeMap` instead of `HashMap`.
+
+You can opt out like this:
+```TOML
+[dependencies]
+configparser = { version = "3.3.0", default-features = false }
+```
+
  - *indexmap*: Activating the `indexmap` feature allows using [indexmap](https://crates.io/crates/indexmap) in place
   of `HashMap` to store the sections and keys. This ensures that insertion order is preserved when iterating on or
   serializing the Ini object.

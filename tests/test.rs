@@ -1037,10 +1037,10 @@ fn multiline_continuation_rules() -> Result<(), Box<dyn Error>> {
 #[test]
 fn bool_getters_reject_unknown_values() -> Result<(), Box<dyn Error>> {
     use configparser::ini::IniDefault;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     let mut defaults = IniDefault::default();
-    defaults.boolean_values = HashMap::from([(true, vec![String::from("aye")])]);
+    defaults.boolean_values = BTreeMap::from([(true, vec![String::from("aye")])]);
 
     let mut config = Ini::new_from_defaults(defaults);
     config.read(String::from("[s]\nyes = AYE\nno = nay"))?;

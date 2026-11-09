@@ -1,22 +1,29 @@
 //!The ini module provides all the things necessary to load and parse ini-syntax files. The most important of which is the `Ini` struct.
 //!See the [implementation](https://docs.rs/configparser/*/configparser/ini/struct.Ini.html) documentation for more details.
+#[cfg(all(not(feature = "indexmap"), not(feature = "std")))]
+use alloc::collections::BTreeMap as Map;
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap as Map;
 #[cfg(feature = "serde")]
 use serde::de::{Deserialize, Deserializer};
 #[cfg(feature = "serde")]
 use serde::ser::{Serialize, Serializer};
-#[cfg(not(feature = "indexmap"))]
+#[cfg(all(not(feature = "indexmap"), feature = "std"))]
 use std::collections::HashMap as Map;
 #[cfg(feature = "tokio")]
 use tokio::fs as async_fs;
 
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::convert::AsRef;
-use std::fmt::Write;
-use std::fs;
-use std::path::Path;
+use alloc::collections::BTreeMap;
+#[cfg(feature = "std")]
+use std::{fs, path::Path};
+
+use alloc::borrow::Cow;
+use alloc::borrow::ToOwned;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::fmt::Write;
 
 ///The `Ini` struct simply contains a nested hashmap of the loaded configuration, the default section header and comment symbols.
 ///## Example
@@ -29,11 +36,11 @@ use std::path::Path;
 #[non_exhaustive]
 pub struct Ini {
     map: Map<String, Map<String, Option<String>>>,
-    default_section: std::string::String,
+    default_section: String,
     comment_symbols: Vec<char>,
     inline_comment_symbols: Option<Vec<char>>,
     delimiters: Vec<char>,
-    boolean_values: HashMap<bool, Vec<String>>,
+    boolean_values: BTreeMap<bool, Vec<String>>,
     case_sensitive: bool,
     multiline: bool,
     enable_inline_comments: bool,
@@ -119,7 +126,7 @@ pub struct IniDefault {
     ///let default = config.defaults();
     ///assert_eq!(default.default_section, "default");
     ///```
-    pub default_section: std::string::String,
+    pub default_section: String,
     ///Denotes the set comment symbols for the object.
     ///## Example
     ///```rust
@@ -151,7 +158,7 @@ pub struct IniDefault {
     ///assert_eq!(default.delimiters, vec!['=', ':']);
     ///```
     pub delimiters: Vec<char>,
-    pub boolean_values: HashMap<bool, Vec<String>>,
+    pub boolean_values: BTreeMap<bool, Vec<String>>,
     ///Denotes if the `Ini` object is case-sensitive.
     ///## Example
     ///```rust
@@ -204,7 +211,7 @@ impl Default for IniDefault {
             inline_comment_symbols: None,
             delimiters: vec!['=', ':'],
             multiline: false,
-            boolean_values: HashMap::from([
+            boolean_values: [
                 (
                     true,
                     ["true", "yes", "t", "y", "on", "1"]
@@ -217,7 +224,8 @@ impl Default for IniDefault {
                         .map(String::from)
                         .into(),
                 ),
-            ]),
+            ]
+            .into(),
             case_sensitive: false,
             enable_inline_comments: true, // retain compatibility with previous versions
             cascade_defaults: false,      // retain backwards compatibility
@@ -320,6 +328,7 @@ const LINE_ENDING: &str = "\r\n";
 #[cfg(not(windows))]
 const LINE_ENDING: &str = "\n";
 
+#[cfg(feature = "std")]
 fn read_error(path: &Path, why: impl std::fmt::Display) -> String {
     format!("couldn't read {}: {}", path.display(), why)
 }
@@ -547,6 +556,7 @@ impl Ini {
     ///```
     ///Returns `Ok(map)` with a clone of the stored `Map` if no errors are thrown or else `Err(error_string)`.
     ///Use `get_mut_map()` if you want a mutable reference.
+    #[cfg(feature = "std")]
     pub fn load<T: AsRef<Path>>(
         &mut self,
         path: T,
@@ -555,6 +565,7 @@ impl Ini {
         Ok(self.map.clone())
     }
 
+    #[cfg(feature = "std")]
     fn parse_file(&self, path: &Path) -> Result<Map<String, Map<String, Option<String>>>, String> {
         let input = fs::read_to_string(path).map_err(|why| read_error(path, why))?;
         self.parse(input).map_err(|why| read_error(path, why))
@@ -587,6 +598,7 @@ impl Ini {
     ///
     /// assert_eq!(config.get("section", "key").unwrap(), "value");
     /// ```
+    #[cfg(feature = "std")]
     pub fn load_from_stream<R: std::io::Read>(
         &mut self,
         mut reader: R,
@@ -622,6 +634,7 @@ impl Ini {
     ///```
     ///Returns `Ok(map)` with a clone of the stored `Map` if no errors are thrown or else `Err(error_string)`.
     ///Use `get_mut_map()` if you want a mutable reference.
+    #[cfg(feature = "std")]
     pub fn load_and_append<T: AsRef<Path>>(
         &mut self,
         path: T,
@@ -708,6 +721,7 @@ impl Ini {
     ///}
     ///```
     ///Returns a `std::io::Result<()>` type dependent on whether the write was successful or not.
+    #[cfg(feature = "std")]
     pub fn write<T: AsRef<Path>>(&self, path: T) -> std::io::Result<()> {
         fs::write(path.as_ref(), self.unparse(&WriteOptions::default()))
     }
@@ -732,6 +746,7 @@ impl Ini {
     ///}
     ///```
     ///Returns a `std::io::Result<()>` type dependent on whether the write was successful or not.
+    #[cfg(feature = "std")]
     pub fn pretty_write<T: AsRef<Path>>(
         &self,
         path: T,

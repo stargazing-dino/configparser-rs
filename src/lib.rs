@@ -1,3 +1,4 @@
+#![cfg_attr(not(any(test, feature = "std")), no_std)]
 /*!
 This crate provides the `Ini` struct which implements a basic configuration language which provides a structure similar to what’s found in Windows' `ini` files.
 You can use this to write Rust programs which can be customized by end users easily.
@@ -156,4 +157,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 */
+extern crate alloc;
+
 pub mod ini;
